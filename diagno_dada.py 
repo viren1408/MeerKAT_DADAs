@@ -1,0 +1,149 @@
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import argparse
+from scipy.signal import resample
+
+
+def header_info(header):
+    header_dict = {}
+    for line in header.split('\n'):
+        if line and not line.startswith('#') and ' ' in line:
+            key, value = line.split(None,1)
+            header_dict[key] =value.strip()
+            
+    header_dict['NBIT'] = int(header_dict['NBIT'])
+    header_dict['NDIM'] =int(header_dict['NDIM'])
+    header_dict['NPOL'] = int(header_dict['NPOL'])
+    header_dict['NCHAN'] = int(header_dict['NCHAN'])
+    header_dict['NANT']= int(header_dict['NANT'])
+    header_dict['INNER_T'] = int(header_dict['INNER_T'])
+    header_dict['HDR_SIZE'] = int(header_dict['HDR_SIZE'])
+    header_dict['ORDER'] = str(header_dict['ORDER'])
+    header_dict['CHAN0_IDX'] = int(header_dict['CHAN0_IDX'])
+    header_dict['Lowest_freq (MHz)'] = header_dict['CHAN0_IDX']*0.208984375 +856 
+
+    return header_dict
+
+def print_header(header_param):
+    print("\nHeader Information:")
+    print("===================")
+    for key, value in header_param.items():
+        print(f"{key}: {value}")
+    print("===================\n")
+
+def process_dada_file(file_path):
+    with open(file_path, 'rb') as f:
+        header = f.read(4096).decode('ascii')
+
+    header_param = header_info(header)
+
+    with open(file_path, 'rb') as f:
+        f.seek(header_param['HDR_SIZE'])
+        raw_data = np.fromfile(f, dtype=np.int8)
+
+    if header_param['ORDER'] == 'TAFTP':
+        data = np.asarray(np.reshape(raw_data,(-1,header_param['NANT'],header_param['NCHAN'],header_param['INNER_T'],header_param['NPOL'],header_param['NDIM'])),dtype='float32').view('complex64').squeeze()
+
+    return header_param, data
+
+def plot_antenna_diag(header_param, data):
+    channel_width = 856 / 4096  # MHz
+    lowest_frequency = header_param['Lowest_freq (MHz)']
+    power = np.abs(data) ** 2
+
+    avg_inner_t = np.mean(power,axis=3)
+    avg_power = np.mean(avg_inner_t,axis=0)
+
+    nchan = avg_power.shape[1]
+    freqs = np.arange(nchan) *channel_width+lowest_frequency
+
+    fig,axes = plt.subplots(8,8,figsize=(20,20))
+   
+    for ant_index in range(header_param['NANT']): 
+        ax = axes[ant_index // 8, ant_index %8]
+        ax.plot(freqs,avg_power[ant_index,:,:])
+        ax.set_title(f'Ant: {ant_index}',fontsize=8,loc='left')
+        ax.set_ylabel('Power',fontsize=8)
+    
+    plt.title(f"{header_param['SOURCE']} : {header_param['Lowest_freq (MHz)']}")
+
+    plt.tight_layout()
+    plt.savefig(f"{header_param['SOURCE']}_{header_param['Lowest_freq (MHz)']}_antenna_diagnostic.png")
+    print(f"Saved file : {header_param['SOURCE']}_{header_param['Lowest_freq (MHz)']}_antenna_diagnostic.png")
+
+
+def plot_profile_antenna(header_param,data):
+    fig, axes = plt.subplots(8, 8, figsize=(20, 20))
+    ant_index = 0
+
+    for i in range(8):
+        for j in range(8):
+            ax = axes[i, j]
+            if ant_index < 57:
+                IB_0DM = np.sum(np.abs(data[:, ant_index, :, :, :])**2, axis=(1, 3)).reshape(-1)
+                B = resample(IB_0DM, len(IB_0DM)//256)
+                ax.plot(B)
+                ax.set_title(f'Ant: {ant_index}', fontsize=8, loc='left')
+                ax.set_xlabel('Time', fontsize=8)
+                ax.set_ylabel('Power', fontsize=8)
+                ant_index += 1
+            else:
+                ax.axis('off') 
+    plt.title(f"{header_param['SOURCE']} : {header_param['Lowest_freq (MHz)']}")
+
+    plt.tight_layout()
+    plt.savefig(f"{header_param['SOURCE']}_{header_param['Lowest_freq (MHz)']}_pulse_prof_ant.png")
+    print(f"Saved file : {header_param['SOURCE']}_{header_param['Lowest_freq (MHz)']}_pulse_prof_ant.png")
+    
+def plot_incoherent_beam_pulse(header_param, data):
+    fig = plt.figure(figsize=(10, 5))
+    IB_0DM = np.sum(np.abs(data[:, 0:header_param['NANT'],:,:,:])**2,axis=(1,2,4)).reshape(-1)
+    B = resample(IB_0DM, len(IB_0DM)//256)
+    plt.xlabel('Time Sample')
+    plt.ylabel('Power')
+    plt.plot(B)
+    plt.title(f"{header_param['SOURCE']} : {header_param['Lowest_freq (MHz)']}")
+    plt.savefig(f"{header_param['SOURCE']}_{header_param['Lowest_freq (MHz)']}_sum_pulse_prof.png")
+    print(f"Saved file : {header_param['SOURCE']}_{header_param['Lowest_freq (MHz)']}_sum_pulse_prof.png")
+   
+
+def main():
+    parser = argparse.ArgumentParser(description=(
+            '################\n'
+            'DADA DIAGNOSTIC\n'
+            '################\n'
+            '> Print header info for the given file(s).\n'
+            '> Analyze the power received in each antenna as a function of frequency for the given DADA file(s).\n'
+            '> Check the pulse in each antenna (Not always useful).\n'
+            '> Check the 0 DM incoherent sum pulse profile (addition across frequency channels and antennas), given that the dispersion smear is not prominent across the given bandwidth.\n'
+        ), formatter_class=argparse.RawTextHelpFormatter)
+    
+    parser.add_argument('-f', '--files', type=str, nargs='+',help='DADA files to process',required=True)
+    parser.add_argument('-head', '--header', action='store_true', help='Print header')
+    parser.add_argument('-d_ant', '--antenna_diag', action='store_true',help='Plot power received by each antenna (Power Spectra)')
+    parser.add_argument('-prof_ant', '--profile_antenna', action='store_true',help='Pulsar Pulse received by each antenna')
+    parser.add_argument('-incoh_pulse', '--incoherent_beam_pulse', action='store_true',help='Check the 0 DM incoherent sum pulse profile (addition across frequency channels and antennas)')
+    
+    args = parser.parse_args()
+
+    for file_path in args.files:
+        print(f"Processing file: {file_path}")
+        header_param, data =process_dada_file(file_path)
+        
+        if args.header:
+            print_header(header_param)
+        
+        if args.antenna_diag:
+            plot_antenna_diag(header_param,data)
+
+        if args.profile_antenna:
+            plot_profile_antenna(header_param,data)
+
+        if args.incoherent_beam_pulse:
+            plot_incoherent_beam_pulse(header_param,data)
+
+
+if __name__ == '__main__':
+    main()
