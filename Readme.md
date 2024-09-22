@@ -1,4 +1,4 @@
-# DADA Diagnostic Tool
+# DADA Diagnostic Tool dada : diagno_dada.py
 
 This repository contains a Python script for processing and analyzing DADA files, commonly used in radio astronomy. The tool provides several functionalities, including printing header information, analyzing power received by each antenna, checking pulse profiles per antenna, and examining the incoherent sum pulse profile. This tool is handy for diagnostics and inspection of raw voltage data from radio telescopes.
 
@@ -28,23 +28,22 @@ python dada_diagnostic.py -f <DADA_FILE> [OPTIONS]
 - `-prof_ant`, `--profile_antenna`: Plot pulse profile received by each antenna.
 - `-incoh_pulse`, `--incoherent_beam_pulse`: Plot 0 DM incoherent sum pulse profile.
 
-### Example Usage:
+# Bandpass Plotting Tool for Interferometric Data : 
 
-To print the header and plot the power spectra for a DADA file:
+This Python tool processes interferometric data stored in DADA files and visualizes the bandpass for a specific baseline (two antennas) and polarization across all frequency channels. The bandpass is derived from the cross-power spectrum and plotted in a single combined plot. This script was made to observe the baseline dependence of RFI for a given dada file. The code to get RFI to baseline dependence is in progress. 
 
-```bash
-python dada_diagnostic.py -f example.dada -head -d_ant
-```
+## Features
+- Processes DADA file format and extracts relevant data.
+- Calculates cross-power spectrum between two selected antennas (baseline).
+- Uses FFT (1024-point) to compute power spectrum for each channel.
+- Plots the combined bandpass for all frequency channels.
+- Allows selection of specific polarization (Co-polarization or Cross-polarization).
 
-To check the pulse profile for each antenna:
+### Command-Line Options:
 
-```bash
-python dada_diagnostic.py -f example.dada -prof_ant
-```
+- `-f`, `--files`: The DADA file(s) to process. (Required)
+- `-p`, `--polarization {0,1}` : Polarization index (0 or 1)
+-`ants`,`--antennas ANTENNA1 ANTENNA2`: Two antenna indices for baseline
 
-To plot the incoherent sum pulse profile:
 
-```bash
-python dada_diagnostic.py -f example.dada -incoh_pulse
-```
 
