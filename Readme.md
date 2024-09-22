@@ -28,7 +28,7 @@ python dada_diagnostic.py -f <DADA_FILE> [OPTIONS]
 - `-prof_ant`, `--profile_antenna`: Plot pulse profile received by each antenna.
 - `-incoh_pulse`, `--incoherent_beam_pulse`: Plot 0 DM incoherent sum pulse profile.
 
-# Bandpass Plotting Tool for Interferometric Data : 
+# Bandpass of Interferometric Data : dada_base_bandpass.py 
 
 This Python tool processes interferometric data stored in DADA files and visualizes the bandpass for a specific baseline (two antennas) and polarization across all frequency channels. The bandpass is derived from the cross-power spectrum and plotted in a single combined plot. This script was made to observe the baseline dependence of RFI for a given dada file. The code to get RFI to baseline dependence is in progress. 
 
