@@ -2,15 +2,6 @@
 
 This repository contains a Python script for processing and analyzing DADA files, commonly used in radio astronomy. The tool provides several functionalities, including printing header information, analyzing power received by each antenna, checking pulse profiles per antenna, and examining the incoherent sum pulse profile. This tool is handy for diagnostics and inspection of raw voltage data from radio telescopes.
 
-## Dependencies
-
-To run this script, you need to have the following dependencies installed:
-
-- Python 3.6+
-- NumPy
-- Matplotlib
-- SciPy
-
 
 ## Usage
 
